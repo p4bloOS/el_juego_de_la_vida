@@ -1,10 +1,10 @@
 ------------------------------------------------------------------------------
- el_juego_de_la_vida. Aplicación multiplataforma hecha en Rust
+ el_juego_de_la_vida. Una aplicación multiplataforma hecha en Rust
  ----------------------------------------------------------------------------
 
-Implementación del famoso autómata celular diseñado por John Horton Conway.
+Implementación gráfica del famoso autómata celular diseñado por John Horton Conway.
 
-A partir de la plantilla base_egui ( enlace zzzz)
+A partir de el proyecto base_egui ( https://github.com/p4bloOS/base_egui )
 
 Programado en puro Rust.
 
@@ -31,5 +31,4 @@ INSTRUCCIONES PARA ARRANCAR SERVIDOR WEB:
 
 OTRAS CUESTIONES:
 
-    - zzzz
-    - zzzzz
+    - No estoy seguro de que funcione como debe cuando las células vivas sobrepasan los límites del tablero (he intentado que tenga un comportamiento toroidal)

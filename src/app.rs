@@ -1,5 +1,3 @@
-use egui::Vec2;
-
 use crate::Util;
 use crate::Juego;
 
@@ -7,41 +5,43 @@ use crate::Juego;
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // si agregamos nuevos campos, daremos valores predeterminados al deserializar el estado anterior
 pub struct TemplateApp {
-    // Atributos de ejemplo:
-    texto_introducido: String,
+
+    // Atributos para mantener el estado de nuestra aplicación
+    #[serde(skip)]
+    complejidad: u32,
 
     // Así es como se excluye de la serialización un miembro
     #[serde(skip)]
-    replicar: bool,
-
-    complejidad: u32,
-
     tam_fuente: f32,
 
     #[serde(skip)]
     juego: Juego,
 
+    #[serde(skip)]
+    en_marcha: bool,
+
 }
 
 impl Default for TemplateApp {
+
     fn default() -> Self {
+
+        // Complejidad por defecto = 8
         let complj = 8;
         Self {
-            // Atributos de ejemplo:
-            texto_introducido: "Hola mundo!".to_owned(),
-            replicar: false,
             complejidad: complj,
             tam_fuente: 10.0, // no recomendado usar este valor
             juego: Juego::new(complj as usize, complj as usize),
+            en_marcha: false,
         }
     }
 }
 
 impl TemplateApp {
-    /// Llamada una vez antes del primer fotograma
+
+    /// <<Inicialización>> (invocada una vez antes del primer fotograma)
+    /// ** Retorna el estado inicial de la aplicación
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // Aquí se puede personalizar la apariencia de la IGU usando
-        // `cc.egui_ctx.set_visuals` y `cc.egui_ctx.set_fonts`.
 
         // Personaliza los colores
         let visuales = Util::visuales();
@@ -71,86 +71,87 @@ impl TemplateApp {
 /*Tenemos que implementar la característica App para escribir aplicaciones que puedan
 compilarse tanto para web como para nativo usando eframe*/
 impl eframe::App for TemplateApp {
-    /// Llamada por el framework para guardar el estado después de cerrar.
+
+
+    /// <<Guardado>> (se invoca para guardar el estado después de cerrar)
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         eframe::set_value(storage, eframe::APP_KEY, self);
     }
 
-    /// Llamada cuando la IU necesita redibujarse, lo cual podría ocurrir múltiples veces por segundo.
-    /// ctx es el contexto de la interfaz egui; nos permite manejarla.
-    /// Pon tus widgets dentro de `SidePanel`, `TopPanel`, `CentralPanel`, `Window` o `Area`.
+    /// <<Refresco>> (se invoca cuando la IU necesita redibujarse, lo cual podría ocurrir múltiples veces
+    ///  por segundo. ctx es el contexto de la interfaz egui; nos permite manejarla.)
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
 
-        let Self { texto_introducido, replicar, complejidad, .. } = self;
+        // Recuperamos el estado de la aplicación
+        let Self { complejidad, tam_fuente, juego, en_marcha } = self;
 
-        // Ejemplos de cómo crear algunos paneles y widgets.
-        // Consejo: una buena elección por defecto es simplemente dejar el `CentralPanel`.
-        // Para más ejemplos e inspiración ir a https://emilk.github.io/egui
-
+        // EA partir de aquí añadimos los contenedores y widgets de nuestra IGU
         egui::CentralPanel::default().show(ctx, |ui| {
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            ui.vertical_centered(|ui| {
+        egui::ScrollArea::both().show(ui, |ui| {
+        ui.vertical_centered(|ui| {
 
-                // Título
-                ui.heading("EL JUEGO DE LA VIDA");
-                ui.add_space(self.tam_fuente * 2.0);
+            // Título
+            ui.heading("EL JUEGO DE LA VIDA");
+            ui.add_space(*tam_fuente * 2.0);
 
-                // Juego
-                
+            // Juego
+            let tam_celda = *tam_fuente * 2.0;
+            let anchura =  tam_celda * *complejidad as f32;
+            let dims_tablero = egui::Vec2::new(anchura, 1.0);
+            let dims_deslizador = egui::Vec2::new(*tam_fuente * 16.0,0.0);
+            let disposicion = egui::Layout::left_to_right(egui::Align::Center).with_main_wrap(true);
 
-                let tam_celda = egui::Vec2::splat(self.tam_fuente * 2.0);
-                let tam_total = egui::Vec2::new(tam_celda.x * 10.0, 1.0);
-                let esquema = egui::Layout::left_to_right(egui::Align::Center).with_main_wrap(true);
+            // Selector de complejidad y botón EMPEZAR
+            ui.allocate_ui_with_layout(dims_deslizador,disposicion, |ui| {
 
-                ui.allocate_ui_with_layout(tam_total,esquema, |ui| {
-
-                    //let (response2, painter2) = ui.allocate_painter(tam_total, egui::Sense::click());
-                    //let rect = response2.rect;
-                    //painter2.rect_filled(rect, egui::Rounding::none(), egui::Color32::WHITE);
-                    let margen = ui.style().spacing.item_spacing.x;
-                    ui.set_max_width( (tam_celda.x + margen) * self.juego.matriz.len() as f32 );
-                    ui.set_max_height(tam_celda.y + margen);
-
-                    for i in 0..self.juego.matriz.len() {
-
-                        for j in 0..self.juego.matriz[i].len() {
-
-                            let (response, painter) = ui.allocate_painter(tam_celda, egui::Sense::click());
-                            let rect = response.rect;
-                            let color = egui::Color32::from_gray(128);
-                            if response.hovered() {painter.rect_filled(rect, egui::Rounding::none(), egui::Color32::BLUE);}
-                            else {painter.rect_filled(rect, egui::Rounding::none(), color);}
-                            if response.clicked() { println!("clicado"); }
-                        }
-                    }
-                });
-
-                ui.add_space(self.tam_fuente * 2.0);
-
-                ui.allocate_ui_with_layout(tam_total,esquema, |ui| {
-                    // Selector de complejidad
-                    let deslizador = egui::Slider::new( complejidad, 0..=100).prefix("Complejidad: ");
-                    ui.add(deslizador).on_hover_text("Arrástrame!");
-                });
-
-
-                ui.add_space(self.tam_fuente * 2.0);
-
-                // Botón de empezar
-                let boton = ui.button("EMPEZAR");
-                if boton.clicked(){
-                    *replicar = true;
+                // Selector de complejidad
+                let deslizador = egui::Slider::new( complejidad, 0..=100).prefix("Selecciona la complejidad: ");
+                let mut interaccion_deslizador = ui.add(deslizador);
+                interaccion_deslizador = interaccion_deslizador.on_hover_text("Arrástrame!");
+                if interaccion_deslizador.changed() {
+                    *juego = Juego::new(*complejidad as usize, *complejidad as usize);
+                    *en_marcha = false;
                 }
-                if *replicar { ui.label(egui::RichText::new(texto_introducido.clone()).color(egui::Color32::WHITE));
-                } else { ui.label(""); }
-
-
-                // Avisa si no es una release
-                egui::warn_if_debug_build(ui);
             });
+
+            ui.add_space(*tam_fuente * 2.0);
+
+            // Botón de empezar
+            let boton = ui.button("EMPEZAR");
+            if boton.clicked(){
+                println!("EMPEZANDO");
+                *en_marcha = true;
+            }
+
+            ui.add_space(*tam_fuente * 2.0);
+
+            // Graficación del tablero
+            juego.pintar(tam_celda, dims_tablero, disposicion, ui);
             
-    });
-    });
+            ui.add_space(tam_celda);
+
+            // Gestión temporal del juego
+            let tiempo = ui.input(|i| i.time);
+            if *en_marcha && juego.momento_de_progreso(tiempo) {
+                juego.progresar();
+            }
+
+            // Si el juego está en marcha la IGU debe refrescarse más a menudo
+            if *en_marcha
+                { ctx.request_repaint_after(std::time::Duration::from_secs_f32(0.25)); }
+
+            // Créditos
+            ui.label("Basado en el célebre autómata celular diseñado por John Horton Conway. ");
+            ui.hyperlink_to("( https://es.wikipedia.org/wiki/Juego_de_la_vida) ","https://es.wikipedia.org/wiki/Juego_de_la_vida");
+            ui.label(">> Selecciona la complejidad, escribe el patrón y pulsa empezar ");
+
+            // Avisa si no es una release
+            egui::warn_if_debug_build(ui);
+
+
+        });
+        });
+        });
     }
 
 
