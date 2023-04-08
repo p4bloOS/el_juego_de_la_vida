@@ -1,4 +1,7 @@
+use egui::Vec2;
+
 use crate::Util;
+use crate::Juego;
 
 /// Derivamos Deserialize/Serialize para poder persistir el estado de la app al cerrarse
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -10,14 +13,26 @@ pub struct TemplateApp {
     // Así es como se excluye de la serialización un miembro
     #[serde(skip)]
     replicar: bool,
+
+    complejidad: u32,
+
+    tam_fuente: f32,
+
+    #[serde(skip)]
+    juego: Juego,
+
 }
 
 impl Default for TemplateApp {
     fn default() -> Self {
+        let complj = 8;
         Self {
             // Atributos de ejemplo:
             texto_introducido: "Hola mundo!".to_owned(),
             replicar: false,
+            complejidad: complj,
+            tam_fuente: 10.0, // no recomendado usar este valor
+            juego: Juego::new(complj as usize, complj as usize),
         }
     }
 }
@@ -32,16 +47,24 @@ impl TemplateApp {
         let visuales = Util::visuales();
         cc.egui_ctx.set_visuals(visuales);
 
-        // Personaliza la fuente
-        Util::cambiar_estilo_texto(cc);
+        // Obtiene el tamaño de fuente y personaliza la fuente
+        let tam_fuente = Util::tamano_fuente_adecuado(cc);
+        Util::cambiar_estilo(cc, tam_fuente);
+
+        println!("Tamaño obtenido: {}", tam_fuente);
 
         // Carga el estado previo de la aplicación (si lo hubiese)
         // Advierte que se debe habilitar la característica `persistence` para que funcione
         if let Some(storage) = cc.storage {
-            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+            let mut retorno: TemplateApp = eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+            retorno.tam_fuente = tam_fuente;
+            return retorno
         }
 
-        Default::default()
+        Self {
+            tam_fuente: tam_fuente,
+            ..Default::default()
+        }
     }
 }
 
@@ -57,41 +80,78 @@ impl eframe::App for TemplateApp {
     /// ctx es el contexto de la interfaz egui; nos permite manejarla.
     /// Pon tus widgets dentro de `SidePanel`, `TopPanel`, `CentralPanel`, `Window` o `Area`.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let Self { texto_introducido, replicar } = self;
+
+        let Self { texto_introducido, replicar, complejidad, .. } = self;
 
         // Ejemplos de cómo crear algunos paneles y widgets.
         // Consejo: una buena elección por defecto es simplemente dejar el `CentralPanel`.
         // Para más ejemplos e inspiración ir a https://emilk.github.io/egui
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            ui.vertical_centered(|ui| {
 
-            ui.heading("Esta es una aplicación base muy sencilla usando Rust y la biblioteca egui con el framework eframe");
+                // Título
+                ui.heading("EL JUEGO DE LA VIDA");
+                ui.add_space(self.tam_fuente * 2.0);
 
-            ui.text_edit_multiline(texto_introducido);
+                // Juego
+                
 
-            let boton = ui.button("Replicar");
-            if boton.clicked(){
-                *replicar = true;
-            }
-            if *replicar { ui.label(egui::RichText::new(texto_introducido.clone()).color(egui::Color32::WHITE));
-            } else { ui.label(""); }
+                let tam_celda = egui::Vec2::splat(self.tam_fuente * 2.0);
+                let tam_total = egui::Vec2::new(tam_celda.x * 10.0, 1.0);
+                let esquema = egui::Layout::left_to_right(egui::Align::Center).with_main_wrap(true);
 
-            // Este elemento no aparecerá en la versión web
-            #[cfg(not(target_arch = "wasm32"))]
-            if ui.button("Salir").clicked() {
-                _frame.close();
-            }
-            egui::warn_if_debug_build(ui);
-        });
+                ui.allocate_ui_with_layout(tam_total,esquema, |ui| {
 
-        if false {
-            egui::Window::new("Window").show(ctx, |ui| {
-                ui.label("Windows can be moved by dragging them.");
-                ui.label("They are automatically sized based on contents.");
-                ui.label("You can turn on resizing and scrolling if you like.");
-                ui.label("You would normally choose either panels OR windows.");
+                    //let (response2, painter2) = ui.allocate_painter(tam_total, egui::Sense::click());
+                    //let rect = response2.rect;
+                    //painter2.rect_filled(rect, egui::Rounding::none(), egui::Color32::WHITE);
+                    let margen = ui.style().spacing.item_spacing.x;
+                    ui.set_max_width( (tam_celda.x + margen) * self.juego.matriz.len() as f32 );
+                    ui.set_max_height(tam_celda.y + margen);
+
+                    for i in 0..self.juego.matriz.len() {
+
+                        for j in 0..self.juego.matriz[i].len() {
+
+                            let (response, painter) = ui.allocate_painter(tam_celda, egui::Sense::click());
+                            let rect = response.rect;
+                            let color = egui::Color32::from_gray(128);
+                            if response.hovered() {painter.rect_filled(rect, egui::Rounding::none(), egui::Color32::BLUE);}
+                            else {painter.rect_filled(rect, egui::Rounding::none(), color);}
+                            if response.clicked() { println!("clicado"); }
+                        }
+                    }
+                });
+
+                ui.add_space(self.tam_fuente * 2.0);
+
+                ui.allocate_ui_with_layout(tam_total,esquema, |ui| {
+                    // Selector de complejidad
+                    let deslizador = egui::Slider::new( complejidad, 0..=100).prefix("Complejidad: ");
+                    ui.add(deslizador).on_hover_text("Arrástrame!");
+                });
+
+
+                ui.add_space(self.tam_fuente * 2.0);
+
+                // Botón de empezar
+                let boton = ui.button("EMPEZAR");
+                if boton.clicked(){
+                    *replicar = true;
+                }
+                if *replicar { ui.label(egui::RichText::new(texto_introducido.clone()).color(egui::Color32::WHITE));
+                } else { ui.label(""); }
+
+
+                // Avisa si no es una release
+                egui::warn_if_debug_build(ui);
             });
-        }
+            
+    });
+    });
     }
+
+
 }

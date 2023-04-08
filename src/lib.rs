@@ -49,7 +49,8 @@ impl Util {
         puntos_fuente
     }
     
-    fn cambiar_estilo_texto(cc: &eframe::CreationContext<'_>) {
+    // Cambia el estilo (del texto y el espaciado)
+    fn cambiar_estilo(cc: &eframe::CreationContext<'_>, puntos_fuente: f32) {
 
         let mut fonts = egui::FontDefinitions::default();
         // Instalamos nuestra propia fuente (.ttf and .otf files supported)
@@ -73,7 +74,6 @@ impl Util {
 
         let mut style = (*cc.egui_ctx.style()).clone();
         let fuente = egui::FontFamily::Proportional;
-        let puntos_fuente = Self::tamano_fuente_adecuado(cc);
 
         style.text_styles = [
             (egui::style::TextStyle::Heading, egui::FontId::new(puntos_fuente, fuente.clone())),
@@ -82,7 +82,37 @@ impl Util {
             (egui::style::TextStyle::Button, egui::FontId::new(puntos_fuente, fuente.clone())),
             (egui::style::TextStyle::Small, egui::FontId::new(puntos_fuente, fuente)),
         ].into();
+
+        style.spacing.item_spacing.y = puntos_fuente / 8.0;
+        style.spacing.item_spacing.x = puntos_fuente / 8.0;
+
         cc.egui_ctx.set_style(style);
+
     }
 
+}
+
+
+struct Juego {
+    matriz: Vec<Vec<bool>>,
+}
+
+impl Juego {
+
+    // Crea el tablero con longitudes x e y
+    fn new(x: usize, y: usize) -> Self {
+
+        println!("algooooo");
+
+        let mut matriz: Vec<Vec<bool>> = Vec::with_capacity(x);
+
+        for i in 0..x {
+            matriz.push(Vec::with_capacity(x));
+            for _j in 0..y {
+                matriz[i].push(false);
+            }
+        }
+
+        Self {matriz}
+    }
 }
